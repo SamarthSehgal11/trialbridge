@@ -42,6 +42,17 @@ def startup_event():
     se.init_model()
 
 
+@app.get("/health")
+def health_check():
+    """Railway healthcheck endpoint."""
+    return {"status": "ok", "service": "TrialBridge API"}
+
+
+@app.get("/")
+def root():
+    return {"message": "TrialBridge API — visit /docs for interactive API docs"}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
