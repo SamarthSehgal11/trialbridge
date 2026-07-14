@@ -1,166 +1,175 @@
-# TrialBridge 🏥
+# TrialBridge
 
-TrialBridge is an AI-powered clinical trial matching platform that connects patients and researchers with ongoing clinical studies. Users describe their diagnosis in plain conversational English and TrialBridge returns semantically-ranked, live trial records from ClinicalTrials.gov using local vector embeddings.
+Live Application: https://trialbridge-smoky.vercel.app
+
+TrialBridge is a clinical trial discovery platform built for patients, caregivers, and researchers. Users describe their condition in plain language and the platform returns semantically ranked, real-time trial records sourced directly from ClinicalTrials.gov. The search is powered by local vector embeddings rather than keyword matching, which allows it to surface relevant trials even when the user does not know the exact medical terminology.
 
 ---
 
-## 📐 Architecture
+## Live Deployment
 
-```text
-              +----------------------------------------------+
-              |               Patient / Browser              |
-              +----------------------+-----------------------+
-                                     |
-                   React Router, Axios, Custom CSS
-                                     |
-                                     v
-              +----------------------------------------------+
-              |         React + Vite Frontend (Port 5173)    |
-              |  pages/ components/ hooks/ styles/           |
-              +----------------------+-----------------------+
-                                     |
-                         HTTP API calls (JSON)
-                                     |
-                                     v
-              +----------------------------------------------+
-              |         FastAPI Backend (Port 8000)          |
-              |  main.py · routes/ · eligibility · cache     |
-              +----+------------------+--------------+-------+
-                   |                  |              |
-        ML Ranking Engine             |    PostgreSQL / SQLite DB
-                   v                  |              v
-        +-------------------+         |     +-----------------+
-        | sentence-transformers        |     |  Bookmarks +    |
-        | all-MiniLM-L6-v2  |         |     |  Analytics Logs |
-        +-------------------+         v     +-----------------+
-                       +---------------------------------+
-                       |  ClinicalTrials.gov v2 REST API |
-                       +---------------------------------+
+Frontend: https://trialbridge-smoky.vercel.app  
+Backend API: https://trialbridge-production.up.railway.app  
+API Documentation: https://trialbridge-production.up.railway.app/docs  
+
+---
+
+## Architecture
+
+```
+Browser
+  |
+  React + Vite (Vercel)
+  |
+  FastAPI + Uvicorn (Railway)
+  |
+  +-- Sentence Transformers (all-MiniLM-L6-v2)
+  |
+  +-- ClinicalTrials.gov v2 REST API
+  |
+  +-- PostgreSQL / SQLite (bookmarks and analytics)
 ```
 
 ---
 
-## 🚀 Key Features
+## Features
 
-- **Semantic Search** — Plain-language queries ranked by `all-MiniLM-L6-v2` cosine similarity
-- **Eligibility Screener** — 5-step NLP wizard that screens trials against patient age, gender, medications, and metastasis status
-- **Live Filters** — Phase, status, age group, condition category with instant client-side filtering
-- **Saved Trials** — Session-persistent bookmarks with personal notes and doctor Q&A export
-- **Trial Comparison** — Side-by-side table comparing up to 3 saved trials
-- **Search Insights** — Analytics dashboard with donut chart, horizontal bar, and geographic map
-- **Rate Limiting** — `slowapi` guards against abuse (15 searches/min per IP)
-- **Export to PDF** — Browser print report formatted for clinical consultation
+Semantic Search — plain-language queries ranked using cosine similarity against local vector embeddings. No keyword matching required.
 
----
+Eligibility Screener — a multi-step screening tool that filters trials against patient age, gender, current medications, prior treatments, and metastasis status.
 
-## 🛠️ Tech Stack
+Live Filters — narrow results by trial phase, recruitment status, age group, and condition category without a page reload.
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 18 + Vite, React Router, Axios |
-| Styling | Vanilla CSS (split into `styles/` modules) |
-| Backend | FastAPI, Uvicorn, SlowAPI |
-| ML | `sentence-transformers` (all-MiniLM-L6-v2) |
-| Database | PostgreSQL (prod) / SQLite (dev fallback) |
-| Config | `pydantic-settings` BaseSettings |
-| Testing | `pytest`, `httpx`, `pytest-mock` |
-| CI/CD | GitHub Actions |
-| Container | Docker + Nginx (production) |
+Saved Trials — bookmark trials across a session, add personal notes, and export a formatted PDF summary for clinical consultations.
+
+Trial Comparison — side-by-side table comparing up to three saved trials on phase, status, eligibility criteria, and location.
+
+Search Insights — analytics dashboard showing search history, phase distribution, and a geographic map of trial locations.
+
+Rate Limiting — backend-enforced 15 requests per minute per IP address using SlowAPI.
 
 ---
 
-## 🗂️ Project Structure
+## Tech Stack
+
+Layer — Technology
+
+Frontend: React 18, Vite, React Router, Axios, Vanilla CSS  
+Backend: FastAPI, Uvicorn, SlowAPI  
+Machine Learning: sentence-transformers (all-MiniLM-L6-v2, cross-encoder/ms-marco-MiniLM-L6-v2)  
+Database: PostgreSQL in production, SQLite as local fallback  
+Configuration: pydantic-settings  
+Infrastructure: Docker, Nginx, Railway (backend), Vercel (frontend)  
+
+---
+
+## Project Structure
 
 ```
 TrialBridge/
-├── backend/
-│   ├── main.py           # App init, middleware, router registration
-│   ├── config.py         # pydantic-settings BaseSettings
-│   ├── cache.py          # Thread-safe TTL cache
-│   ├── eligibility.py    # check_eligibility(), parse_study()
-│   ├── models.py         # Pydantic request/response models
-│   ├── limiter.py        # SlowAPI limiter singleton
-│   ├── database.py       # PostgreSQL/SQLite layer
-│   ├── search_engine.py  # Sentence-Transformers similarity ranking
-│   ├── routes/
-│   │   ├── search.py     # GET /api/search, /api/autocomplete, /api/trial/{id}
-│   │   ├── bookmarks.py  # POST/DELETE/GET/PUT /api/bookmarks
-│   │   └── insights.py   # GET /api/insights, /api/filters
-│   └── tests/
-│       ├── test_eligibility.py
-│       ├── test_search.py
-│       └── test_api.py
-└── frontend/
-    └── src/
-        ├── pages/
-        │   ├── ResultsPage.jsx  # Orchestrator (~270 lines)
-        │   ├── LandingPage.jsx
-        │   ├── InsightsPage.jsx
-        │   └── TrialDetailPage.jsx
-        ├── components/
-        │   ├── TrialCard.jsx
-        │   ├── FilterSidebar.jsx
-        │   ├── ScreeningPanel.jsx
-        │   ├── TrialDetailDrawer.jsx
-        │   └── TrialComparisonModal.jsx
-        ├── hooks/
-        │   ├── useTrialFilters.js
-        │   └── useMapData.js
-        ├── styles/
-        │   ├── base.css        # Variables, reset, typography
-        │   ├── animations.css  # All @keyframes + utilities
-        │   ├── layout.css      # Navbar, grid, footer, responsive
-        │   ├── components.css  # Cards, badges, drawers, modals
-        │   └── pages/
-        │       ├── landing.css
-        │       ├── results.css
-        │       └── insights.css
-        └── context/
-            └── TrialContext.jsx
+  backend/
+    main.py              App entry point, middleware, router registration
+    config.py            Environment configuration via pydantic-settings
+    cache.py             Thread-safe in-memory TTL cache
+    eligibility.py       Trial eligibility checking and study parsing
+    database.py          PostgreSQL and SQLite database layer
+    search_engine.py     Two-stage semantic ranking (bi-encoder + cross-encoder)
+    limiter.py           SlowAPI rate limiter singleton
+    routes/
+      search.py          GET /api/search, /api/autocomplete, /api/trial/{id}
+      bookmarks.py       POST, DELETE, GET, PUT /api/bookmarks
+      insights.py        GET /api/insights, /api/filters
+    Dockerfile
+    railway.toml
+  frontend/
+    src/
+      pages/
+        LandingPage.jsx
+        ResultsPage.jsx
+        InsightsPage.jsx
+        TrialDetailPage.jsx
+      components/
+        TrialCard.jsx
+        FilterSidebar.jsx
+        ScreeningPanel.jsx
+        TrialDetailDrawer.jsx
+        TrialComparisonModal.jsx
+      hooks/
+        useTrialFilters.js
+        useMapData.js
+      context/
+        TrialContext.jsx
+    Dockerfile
+    nginx.conf
+    vercel.json
 ```
 
 ---
 
-## ⚙️ Installation
+## Local Setup
 
-### Prerequisites
-- Python 3.10+, Node.js 18+
+Requirements: Python 3.10 or later, Node.js 18 or later.
 
-### Backend
+**Backend**
+
 ```bash
 cd backend
-python -m venv venv && source venv/bin/activate   # Windows: .\\venv\\Scripts\\activate
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python main.py
 ```
-*Backend available at `http://localhost:8000`. First run downloads the ML model (~90 MB).*
 
-### Frontend
+The API will be available at http://localhost:8000. On the first run, the sentence-transformers models will be downloaded automatically (approximately 180 MB total).
+
+**Frontend**
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-*Frontend available at `http://localhost:5173`.*
 
-### Docker (Production)
+The UI will be available at http://localhost:5173.
+
+**Docker**
+
 ```bash
 docker-compose up --build
 ```
 
 ---
 
-## 🗄️ Environment Variables (`.env`)
+## Environment Variables
 
-```env
+Create a `.env` file inside the `backend/` directory.
+
+```
 DATABASE_URL=postgresql://user:pass@localhost:5432/trialbridge_db
 CACHE_TTL=60
+ALLOWED_ORIGINS=http://localhost:5173
 ```
-If `DATABASE_URL` is absent or PostgreSQL is unreachable, the backend auto-falls back to `backend/trialbridge.db` (SQLite).
+
+If `DATABASE_URL` is not set or PostgreSQL is unreachable, the application falls back to a local SQLite database at `backend/trialbridge.db` automatically.
 
 ---
 
-## 🧪 Running Tests
+## API Reference
+
+GET /api/search — semantic trial search, accepts query, age, gender, prior_treatments, current_meds, healthy, metastasis  
+GET /api/autocomplete — condition name suggestions based on a prefix  
+GET /api/trial/{nct_id} — full detail record for a single trial  
+POST /api/bookmarks — add a trial to a session's bookmarks  
+DELETE /api/bookmarks — remove a bookmark  
+GET /api/bookmarks — retrieve all bookmarks for a session  
+PUT /api/bookmarks/notes — update notes on a saved bookmark  
+GET /api/insights — aggregated analytics for recent searches  
+GET /api/filters — available filter options for the current result set  
+GET /health — service health check endpoint  
+
+---
+
+## Running Tests
 
 ```bash
 cd backend
@@ -169,28 +178,14 @@ pytest tests/ -v
 
 ---
 
-## 📡 API Reference
+## Data Source
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/search` | Semantic trial search with optional eligibility params |
-| `GET` | `/api/autocomplete` | Condition name autocomplete |
-| `GET` | `/api/trial/{nct_id}` | Full trial detail |
-| `POST` | `/api/bookmarks` | Add bookmark |
-| `DELETE` | `/api/bookmarks` | Remove bookmark |
-| `GET` | `/api/bookmarks` | Get all bookmarks for a session |
-| `PUT` | `/api/bookmarks/notes` | Update bookmark notes |
-| `GET` | `/api/insights` | Analytics summary |
-| `GET` | `/api/filters` | Available filter options |
+All trial records are sourced from the ClinicalTrials.gov v2 API, a public service provided by the National Library of Medicine at the National Institutes of Health.
+
+API documentation: https://clinicaltrials.gov/data-api/about-api
 
 ---
 
-## ⚠️ Medical Disclaimer
+## Disclaimer
 
-TrialBridge is an educational prototype. It is **not** a diagnostic tool or substitute for professional medical advice. Always consult with a licensed clinician before joining any clinical trial.
-
----
-
-## 🏷️ Data Source
-
-All trial listings are sourced from the [ClinicalTrials.gov v2 API](https://clinicaltrials.gov/data-api/about-api) — a public service of the National Library of Medicine.
+TrialBridge is an independent educational project and is not affiliated with ClinicalTrials.gov, the NIH, or any healthcare institution. It is not a diagnostic tool and does not constitute medical advice. Patients and caregivers should consult a licensed clinician before making any decisions regarding clinical trial participation.
