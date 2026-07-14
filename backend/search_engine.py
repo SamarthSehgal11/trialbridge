@@ -79,24 +79,23 @@ def compute_similarity(query: str, studies: list) -> list:
         study_texts.append(text)
         
     try:
-        # 1. First Stage: Bi-Encoder Candidate Retrieval
-        query_embedding = model.encode(query, convert_to_tensor=True)
-        study_embeddings = model.encode(study_texts, convert_to_tensor=True)
+        # 1. First Stage: Bi-Encoder Candidate Retrieval (batch_size=8 limits peak RAM)
+        query_embedding = model.encode(query, convert_to_tensor=True, batch_size=8)
+        study_embeddings = model.encode(study_texts, convert_to_tensor=True, batch_size=8)
         cosine_scores = util.cos_sim(query_embedding, study_embeddings)[0]
         
         ranked_studies = []
         for i, study in enumerate(studies):
             bi_score = cosine_scores[i].item()
-            # Cache the Bi-Encoder score for sorting
             study["biScore"] = bi_score
             ranked_studies.append(study)
             
         # Sort by Bi-Encoder score to find candidates
         ranked_studies.sort(key=lambda x: x["biScore"], reverse=True)
         
-        # Limit candidate pool for intensive Cross-Encoder re-ranking to top 40
-        candidates = ranked_studies[:40]
-        remaining = ranked_studies[40:]
+        # Only cross-encode top 15 to stay within 512MB Railway RAM limit
+        candidates = ranked_studies[:15]
+        remaining = ranked_studies[15:]
         
         # 2. Second Stage: Cross-Encoder Re-ranking
         if candidates:
@@ -105,12 +104,12 @@ def compute_similarity(query: str, studies: list) -> list:
             for study in candidates:
                 protocol = study.get("protocolSection", {})
                 desc_mod = protocol.get("descriptionModule", {})
-                brief_summary = desc_mod.get("briefSummary", "")
+                brief_summary = desc_mod.get("briefSummary", "")[:200]
                 eligibility = protocol.get("eligibilityModule", {})
                 criteria = eligibility.get("eligibilityCriteria", "")
                 
-                # Combine summary and eligibility for deep comparison
-                content = f"Summary: {brief_summary}. Criteria: {criteria[:1000]}"
+                # Short content (300 chars total) to cap cross-encoder RAM
+                content = f"Summary: {brief_summary}. Criteria: {criteria[:300]}"
                 pairs.append([query, content])
                 
             # Predict Cross-Encoder similarity logit scores

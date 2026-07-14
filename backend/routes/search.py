@@ -111,7 +111,7 @@ def search_trials(
     if parsed_results is None:
         logger.info(f"Fetching trials from ClinicalTrials.gov API for query: '{query}'")
         url = "https://clinicaltrials.gov/api/v2/studies"
-        params = {"query.term": query, "pageSize": 60, "format": "json"}
+        params = {"query.term": query, "pageSize": 25, "format": "json"}
         try:
             response = requests.get(url, params=params, timeout=10)
             if response.status_code != 200:
