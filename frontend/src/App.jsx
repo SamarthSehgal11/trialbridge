@@ -76,7 +76,7 @@ const Footer = () => {
         </div>
         <div className="footer-links">
           <a href="/about" className="footer-link">About Project</a>
-          <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="footer-link">GitHub</a>
+          <a href="https://github.com/SamarthSehgal11/trialbridge" target="_blank" rel="noopener noreferrer" className="footer-link">GitHub</a>
           <a href="https://clinicaltrials.gov" target="_blank" rel="noopener noreferrer" className="footer-link">ClinicalTrials.gov API Credit</a>
         </div>
       </div>
